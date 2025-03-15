@@ -96,13 +96,28 @@ class Profile:
 
     """
 
-    def __init__(self, dsuserver=None, username=None, password=None):
+    def __init__(self, dsuserver=None, username=None, password=None, token = None):
         self.dsuserver = dsuserver # REQUIRED
         self.username = username # REQUIRED
         self.password = password # REQUIRED
         self.bio = ''            # OPTIONAL
         self._posts = []         # OPTIONAL
+        self.token = token
+        self.recipients = []
+        self.messages = []
     
+    def add_rec(self, recipient: str):
+        """
+        adds recipient (parameter) to list of recipients
+        """
+        if recipient not in self.recipients:
+            self.recipients.append(recipient)
+    
+    def add_msg(self,message: dict):
+        """
+        adds message (parameter) to list of messages
+        """
+        self.messages.append(message)
     """
 
     add_post accepts a Post object as parameter and appends it to the posts list. Posts 
@@ -160,9 +175,18 @@ class Profile:
 
         if p.exists() and p.suffix == '.dsu':
             try:
-                f = open(p, 'w')
-                json.dump(self.__dict__, f)
-                f.close()
+                prof_data = {
+                    "dsuserver": self.dsuserver,
+                    "username": self.username,
+                    "password": self.password,
+                    "bio": self.bio,
+                    "_posts": [post.__dict__ for post in self._posts],
+                    "token":self.token,
+                    "recipients": self.recipients, 
+                    "messages": self.messages
+                            }
+                with open(p, 'w') as f:
+                    json.dump(prof_data,f)
             except Exception as ex:
                 raise DsuFileError("Error while attempting to process the DSU file.", ex)
         else:
@@ -192,9 +216,10 @@ class Profile:
                 self.password = obj['password']
                 self.dsuserver = obj['dsuserver']
                 self.bio = obj['bio']
-                for post_obj in obj['_posts']:
-                    post = Post(post_obj['entry'], post_obj['timestamp'])
-                    self._posts.append(post)
+                self.token = obj['token']
+                #using .get() in case keys/fields are empty to avoid key error
+                self.recipients = obj.get('recipients', [])
+                self.messages = obj.get('messages', [])
                 f.close()
             except Exception as ex:
                 raise DsuProfileError(ex)
