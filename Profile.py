@@ -105,13 +105,33 @@ class Profile:
         self.token = token
         self.recipients = []
         self.messages = []
-    
+
+    def save_messages(self, path:str):
+        p = Path("."+path)
+        if p.suffix == '.dsu':
+            try:
+                with open(p,'w') as file:
+                    json.dump(self.messages,file)
+            except Exception as e:
+                raise DsuFileError(f"Error saving messages: {e}")
+        else:
+            raise DsuFileError("Invalid File Type.")
+        
+    def load_messages(self,path:str):
+        p = Path("."+path)
+        print(p.absolute())
+        if p.suffix == '.dsu' and p.exists():
+            try:
+                with open(p, 'r') as f:
+                    self.messages = json.load(f)
+            except Exception as e:
+                raise DsuFileError(f"Error loading messages: {e}")
+        else:
+            raise DsuFileError("Invalid file path or type.")
+
     def add_rec(self, recipient: str):
-        """
-        adds recipient (parameter) to list of recipients
-        """
-        if recipient not in self.recipients:
-            self.recipients.append(recipient)
+            if recipient not in self.recipients:
+                self.recipients.append(recipient)
     
     def add_msg(self,message: dict):
         """
@@ -170,12 +190,20 @@ class Profile:
     Raises DsuFileError
 
     """
-    def save_profile(self, path: str) -> None:
-        p = Path(path)
+    def save_profile(self, path: str,user_k) -> None:
+        p = Path("."+ path)
+    
+        if not p.exists():
+            p.touch()
+            with open(p, 'w') as f:
+                json.dump({},f)
 
         if p.exists() and p.suffix == '.dsu':
             try:
-                prof_data = {
+                with open(p, 'r') as f:
+                    data = json.load(f)
+                
+                data[user_k] = {
                     "dsuserver": self.dsuserver,
                     "username": self.username,
                     "password": self.password,
@@ -186,11 +214,10 @@ class Profile:
                     "messages": self.messages
                             }
                 with open(p, 'w') as f:
-                    json.dump(prof_data,f)
+                    json.dump(data,f)
             except Exception as ex:
-                raise DsuFileError("Error while attempting to process the DSU file.", ex)
-        else:
-            raise DsuFileError("Invalid DSU file path or type")
+                raise DsuFileError("V2Error while attempting to process the DSU file.", ex)
+
 
     """
 
@@ -205,22 +232,23 @@ class Profile:
     Raises DsuProfileError, DsuFileError
 
     """
-    def load_profile(self, path: str) -> None:
-        p = Path(path)
+    def load_profile(self, path: str,user_k) -> None:
+        p = Path('.'+ path)
 
         if p.exists() and p.suffix == '.dsu':
             try:
-                f = open(p, 'r')
-                obj = json.load(f)
-                self.username = obj['username']
-                self.password = obj['password']
-                self.dsuserver = obj['dsuserver']
-                self.bio = obj['bio']
-                self.token = obj['token']
-                #using .get() in case keys/fields are empty to avoid key error
-                self.recipients = obj.get('recipients', [])
-                self.messages = obj.get('messages', [])
-                f.close()
+                with open(p, 'r') as f:
+                    data = json.load(f)
+                    print(data)
+                    if user_k in data:
+                        udt = data[user_k]
+                        self.username = udt['username']
+                        self.password = udt['password']
+                        self.dsuserver = udt['dsuserver']
+                        self.bio = udt['bio']
+                        self.token = udt['token']
+                        self.recipients = udt['recipients']
+                        self.messages = udt['messages']
             except Exception as ex:
                 raise DsuProfileError(ex)
         else:

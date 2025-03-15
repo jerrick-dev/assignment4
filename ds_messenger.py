@@ -52,7 +52,6 @@ class DirectMessenger:
         raise ConnectionError("Failed to connect to server.") 
       
       self.profile.token = p_resp.token
-      print(self.profile.token)
 
     except (socket.timeout, socket.error, json.JSONDecodeError) as e:
       print(f"Connection error: {e}")
@@ -68,14 +67,9 @@ class DirectMessenger:
   def send(self, message:str, recipient:str) -> bool:
     if not self.profile.token:
       raise ValueError("Unauthenicated, connect to server first.")
-  
-    if not self.socket:
-        print("Socket is not connected. Attempting to reconnect...")  # Debug: Reconnect attempt
-        self.connect()
-        if not self.socket:
-            raise ConnectionError("Failed to reconnect to the server.")
-
-    self.profile.add_rec(recipient)
+        
+    if recipient not in self.profile.recipients:
+      self.profile.add_rec(recipient)
     #direct message request
     dm = json.dumps({
       "token": self.profile.token,
@@ -83,7 +77,7 @@ class DirectMessenger:
             "entry": message,
             "recipient": recipient,
             "timestamp": str(time.time())
-                       }
+            }
         })
     try:
       self.join_req(dm)
@@ -119,23 +113,19 @@ class DirectMessenger:
       receive = self.socket.makefile("r").readline().strip()
       response = dsp.extract_json(receive)
       messages = []
-      if response.type == "ok" and response.messages:
-        for msg in response.messages:
-          self.profile.add_msg({
-            "sender": msg["from"],
-            "message": msg["message"],
-            "timestamp": msg["timestamp"]
-          })
-          a = DirectMessage()
-          a.sender = msg["from"]
-          a.message = msg["message"]
-          a.timestamp = msg["timestamp"]
-          messages.append(a)
+      if response.type == "ok":
+        for msg in response.messages: 
+            self.profile.add_msg(msg)           
+            a = DirectMessage()
+            a.sender = msg["from"] 
+            a.message = msg["entry"]
+            a.timestamp = msg["timestamp"]
+            messages.append(a)
       return messages
     except Exception as e:
       print(f"Error retrieving new messages: {e}")
       self.close_connection()
-      return False
+
     
   def retrieve_all(self) -> list:
     # must return a list of DirectMessage objects containing all messages
@@ -162,8 +152,8 @@ class DirectMessenger:
                     }) 
                     a = DirectMessage()
                     a.recipient = self.username
-                    a.sender=msg["from"],
-                    a.message=msg["entry"],
+                    a.sender=msg["from"]
+                    a.message=msg["entry"]
                     a.timestamp=msg["timestamp"]
                     messages.append(a)
                 elif "recipient" in msg:
@@ -175,8 +165,8 @@ class DirectMessenger:
                     })
                     a = DirectMessage()
                     a.recipient = self.username
-                    a.sender=msg["recipient"],
-                    a.message=msg["entry"],
+                    a.sender=msg["recipient"]
+                    a.message=msg["entry"]
                     a.timestamp=msg["timestamp"]
                     messages.append(a)
       return messages
