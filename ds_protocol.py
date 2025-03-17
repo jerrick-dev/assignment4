@@ -13,7 +13,8 @@ import json
 from collections import namedtuple
 
 # Namedtuple to hold the values retrieved from json messages.
-DataTuple = namedtuple('DataTuple', ['type', 'token', 'message', 'messages'])
+DataTuple = namedtuple('DataTuple', ['response_type', 'token', 'message',
+                                     'messages'])
 
 
 def extract_json(json_msg: str) -> DataTuple:

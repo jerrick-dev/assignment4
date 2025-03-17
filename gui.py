@@ -118,6 +118,10 @@ class Body(tk.Frame):
             spacing1=5, spacing3=5, relief="raised", borderwidth=2
         )
 
+    def add_contact_to_tree(self, contact: str):
+        """Add a contact to the Treeview."""
+        self._insert_contact_tree(contact)
+
 
 class Footer(tk.Frame):
     """Class representing the footer of the GUI, containing the send button."""
@@ -218,6 +222,8 @@ class MainApp(tk.Frame):
 
         except DsuFileError:
             self.profile.save_profile("profile.dsu", self.username)
+        except ConnectionRefusedError:
+            self.profile.load_profile("profile.dsu", self.username)
 
         self._draw()
 
@@ -241,6 +247,7 @@ class MainApp(tk.Frame):
                 self.body.insert_user_message(message)
                 self.body.set_text_entry("")
                 self.profile.save_profile("profile.dsu", self.username)
+                self.root.after(500, self.check_new)
             else:
                 messagebox.showerror("Error", "User does not exist!")
 
@@ -260,6 +267,7 @@ class MainApp(tk.Frame):
         timestamp = message.get("timestamp", "Unknown")
         msg_text = f"{sender} ({timestamp}): {message.get('message', '')}\n"
         self.body.chat_area.insert(tk.END, msg_text)
+        self.root.after(500, self.check_new)
 
     def load_messages(self, recipient):
         """Load messages for the selected recipient."""
@@ -269,32 +277,26 @@ class MainApp(tk.Frame):
         # Retrieve all messages for the recipient
         if self.profile.messages:
             for msg in self.profile.messages:
-                if (msg["sender"] == self.username and
-                    msg["recipient"] == recipient) or \
-                        (msg["sender"] == recipient and
-                         msg["recipient"] == self.username):
-                    self.display_message(msg)
+                if (msg['sender'] == self.username and msg["recipient"] ==
+                    recipient) or \
+                    (msg["sender"] == recipient and msg["recipient"] ==
+                     self.username):
+                    if msg["sender"] == self.username:
+                        self.body.insert_user_message(msg["message"])
+                    else:
+                        self.body.insert_contact_message(msg["sender"],
+                                                         msg["message"])
+
         self.body.chat_area.configure(state=tk.DISABLED)
         self.body.chat_area.yview(tk.END)
+        self.root.after(500, self.check_new)
 
     def recipient_selected(self, recipient):
         """Handle the event when a recipient is selected."""
         self.recipient = recipient
-        self.body.chat_area.configure(state=tk.NORMAL)
-        self.body.chat_area.delete(1.0, tk.END)
+        self.load_messages(recipient)
 
-        for msg in self.profile.messages:
-            if (msg["sender"] == self.username
-                and msg["recipient"] == recipient) or \
-                    (msg["sender"] == recipient and
-                     msg["recipient"] == self.username):
-                if msg["sender"] == self.username:
-                    self.body.insert_user_message(msg["message"])
-                else:
-                    self.body.insert_contact_message(recipient, msg["message"])
-
-        self.body.chat_area.configure(state=tk.DISABLED)
-        self.body.chat_area.yview(tk.END)
+        self.root.after(500, self.check_new)
 
     def configure_server(self):
         """Configure the server settings."""
@@ -311,30 +313,31 @@ class MainApp(tk.Frame):
         new_messages = self.messenger.retrieve_new()
         if new_messages is None:
             new_messages = []
-
         for msg in new_messages:
-            if self.recipient in (msg.sender, msg.recipient):
-                if msg.sender not in self.body._contacts:
-                    self.body.insert_contact(msg.sender)
+            if msg.sender not in self.body.get_contacts():
+                self.body.insert_contact(msg.sender)
 
-                if msg.sender == self.recipient:
-                    self.profile.add_msg({
-                        "sender": self.recipient,
-                        "recipient": self.username,
-                        "message": msg.message,
-                        "timestamp": msg.timestamp
-                    })
-                    self.body._insert_contact_tree(self.recipient)
-                    self.body.insert_contact_message(self.recipient,
-                                                     msg.message)
-                else:
-                    self.profile.add_msg({
-                        "sender": self.username,
-                        "recipient": self.recipient,
-                        "message": msg.message,
-                        "timestamp": msg.timestamp
-                    })
+            if msg.sender == self.username:
+                self.profile.add_msg({
+                    "sender": self.username,
+                    "recipient": self.recipient,
+                    "message": msg.message,
+                    "timestamp": msg.timestamp
+                })
+
+                if self.recipient == msg.recipient:
                     self.body.insert_user_message(msg.message)
+
+            else:
+                self.profile.add_msg({
+                    "sender": msg.sender,
+                    "recipient": self.username,
+                    "message": msg.message,
+                    "timestamp": msg.timestamp
+                })
+
+                if self.recipient == msg.sender:
+                    self.body.insert_contact_message(msg.sender, msg.message)
 
         self.profile.save_profile("profile.dsu", self.username)
         self.root.after(500, self.check_new)
@@ -365,6 +368,7 @@ class MainApp(tk.Frame):
         self.footer = Footer(self.root, send_callback=self.send_message)
         self.footer.pack(fill=tk.X, side=tk.BOTTOM)
 
+        self.load_messages(self.recipient)
         self.load_con()
         # Start checking for new messages
         self.check_new()
@@ -372,7 +376,7 @@ class MainApp(tk.Frame):
     def load_con(self):
         """Load known contacts into the contact list."""
         for contact_id in self.profile.recipients:
-            self.body._insert_contact_tree(contact_id)
+            self.body.add_contact_to_tree(contact_id)
 
 
 class LoginScreen:
@@ -426,6 +430,17 @@ class LoginScreen:
             root.mainloop()
         except DsuProfileError as e:
             messagebox.showerror("Login Failed", f"Failed to login: {e}")
+        except ConnectionRefusedError as e:
+            messagebox.showerror("Currently offline",
+                                 f"Server refused connection: {e}")
+            self.root.destroy()
+            root = tk.Tk()
+            MainApp(root, DirectMessenger(dsuserver, username, password))
+            root.mainloop()
+
+    def purpose(self):
+        """prints the purpose of this class; only here for pylint"""
+        print("login screen of the application")
 
 
 def gui_start():

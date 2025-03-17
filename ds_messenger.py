@@ -69,14 +69,17 @@ class DirectMessenger:
             receive = self.socket.makefile("r").readline().strip()
             p_resp = dsp.extract_json(receive)
 
-            if p_resp.type != "ok":
+            if p_resp.response_type != "ok":
                 raise ConnectionError("Failed to connect to server.")
 
             self.profile.token = p_resp.token
+
+        except ConnectionRefusedError as e:
+            raise e
+
         except (socket.timeout, socket.error, json.JSONDecodeError) as err:
             print(f"Connection error: {err}")
             self.close_connection()
-            raise
 
     def close_connection(self):
         """Closes the connection to the server."""
@@ -89,7 +92,7 @@ class DirectMessenger:
         if not self.profile.token:
             raise ValueError("Unauthenticated, connect to server first.")
 
-        if recipient not in self.profile.user_data["recipients"]:
+        if recipient not in self.profile.recipients:
             self.profile.add_rec(recipient)
         dm = json.dumps({
             "token": self.profile.token,
@@ -104,7 +107,7 @@ class DirectMessenger:
             receive = (self.socket.makefile("r")
                        .readline().strip())
             response = dsp.extract_json(receive)
-            if (response.type == "ok" and
+            if (response.response_type == "ok" and
                response.message == "Direct message sent"):
                 self.profile.add_msg({
                     "type": "sent",
@@ -133,7 +136,7 @@ class DirectMessenger:
             receive = self.socket.makefile("r").readline().strip()
             response = dsp.extract_json(receive)
             messages = []
-            if response.type == "ok":
+            if response.response_type == "ok":
                 for msg in response.messages:
                     self.profile.add_msg(msg)
                     dm = DirectMessage()
@@ -161,7 +164,7 @@ class DirectMessenger:
             receive = self.socket.makefile("r").readline().strip()
             response = dsp.extract_json(receive)
             messages = []
-            if response.type == "ok" and response.messages:
+            if response.response_type == "ok" and response.messages:
                 for msg in response.messages:
                     dm = DirectMessage()
                     if "from" in msg:
