@@ -404,6 +404,13 @@ class LoginScreen:
         self.password_entry = tk.Entry(self.login_frame, show="*")
         self.password_entry.grid(row=1, column=1, sticky=tk.EW)
 
+        #  Address
+        self.ip_label = tk.Label(self.login_frame, text="Server IP Address:")
+        self.ip_label.grid(row=2, column=0, sticky=tk.W)
+        self.ip_entry = tk.Entry(self.login_frame)
+        self.ip_entry.grid(row=2, column=1, sticky=tk.EW)
+        self.ip_entry.insert(0, "127.0.0.1")  # Default IP address
+
         # Login Button
         self.login_button = tk.Button(
             self.login_frame, text="Login", command=self.login
@@ -414,6 +421,7 @@ class LoginScreen:
         """Handle the login button click event."""
         username = self.username_entry.get().strip()
         password = self.password_entry.get().strip()
+        dsuserver = self.ip_entry.get().strip()
 
         if not username or not password:
             messagebox.showwarning("Error", "Please enter username and "
@@ -421,7 +429,6 @@ class LoginScreen:
             return
 
         # Initialize DirectMessenger
-        dsuserver = "127.0.0.1"
         try:
             messenger = DirectMessenger(dsuserver, username, password)
             self.root.destroy()
