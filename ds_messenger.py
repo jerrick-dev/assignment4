@@ -81,6 +81,7 @@ class DirectMessenger:
         except (socket.timeout, socket.error, json.JSONDecodeError) as err:
             print(f"Connection error: {err}")
             self.close_connection()
+            raise ConnectionError
 
     def close_connection(self):
         """Closes the connection to the server."""

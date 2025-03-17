@@ -16,7 +16,7 @@ def test_extract_json_with_message():
     """Test extracting a JSON response with a message."""
     json_msg = json.dumps({"response": {"type": "ok", "message": "Test"}})
     result = extract_json(json_msg)
-    assert result.type == "ok" and result.message == "Test"
+    assert result.response_type == "ok" and result.message == "Test"
 
 
 def test_extract_json_with_messages():
@@ -29,7 +29,7 @@ def test_extract_json_with_messages():
         }
     })
     result = extract_json(json_msg)
-    assert result.type == "ok" and result.messages == [
+    assert result.response_type == "ok" and result.messages == [
         {"from": "user", "entry": "Hi", "timestamp": "2023-10-01T12:00:00Z"}
     ]
 
@@ -115,7 +115,6 @@ def test_retrieve_all(mock_socket):
     dm = DirectMessenger("test_server", "test_user", "test_password")
     messages = dm.retrieve_all()
     assert len(messages) == 1 and messages[0].sender == "user"
-
 
 @patch('socket.socket')
 def test_close_connection(mock_socket):
