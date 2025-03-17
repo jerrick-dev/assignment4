@@ -75,7 +75,8 @@ class DirectMessenger:
             self.profile.token = p_resp.token
 
         except ConnectionRefusedError as e:
-            raise e
+            print(f"Offline: {e}")
+            self.profile.token = None
 
         except (socket.timeout, socket.error, json.JSONDecodeError) as err:
             print(f"Connection error: {err}")
