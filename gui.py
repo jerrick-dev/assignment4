@@ -375,6 +375,10 @@ class MainApp(tk.Frame):
 
     def load_con(self):
         """Load known contacts into the contact list."""
+        for msg in self.profile.messages:
+            if msg["sender"] != self.username:
+                self.profile.add_rec(msg["sender"])
+
         for contact_id in self.profile.recipients:
             self.body.add_contact_to_tree(contact_id)
 
